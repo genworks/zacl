@@ -105,11 +105,18 @@
     (when current-process-action
       (funcall current-process-action)))))
 
-(%install-periodic-task
- 'process-timer-requests                ; Name of periodic task
- 'process-timer-requests                ; function to call
- (ticks-per-second)			; Run once per second
- )
+(defun install-timer-task ()
+  (%install-periodic-task
+   'process-timer-requests              ; Name of periodic task
+   'process-timer-requests              ; function to call
+   (ticks-per-second)))                 ; Run once per second
+
+;;; A periodic task does not survive SAVE-APPLICATION: in a saved
+;;; image the timer requests were queued and never processed, so every
+;;; WITH-TIMEOUT ran its body to the end and AllegroServe's client never
+;;; gave up on a connect.  Install the task again at every restart.
+(install-timer-task)
+(pushnew 'install-timer-task *restore-lisp-functions*)
 
 
 (defun invoke-with-timeout (seconds bodyfn timeoutfn)
