@@ -29,6 +29,6 @@
   :unknown)
 
 (defun socket-error-code (condition)
-  (if (search (princ-to-string condition) "Broken pipe")
+  (if (search "Broken pipe" (princ-to-string condition))
       32
       99))
