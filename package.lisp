@@ -11,7 +11,7 @@
                 ;; XXX Private package
                 #:without-interrupts
                 #:fd-stream-fd)
-  #+(or sbcl egcl)
+  #+(or sbcl egcl dotcl)
   (:import-from #:usocket
 		#:get-host-by-name)
 

@@ -46,7 +46,9 @@ longer anonymous, but has a meaningful name name."
   #+ccl
   (ccl:gc)
   #+sbcl
-  (sb-ext:gc :full full))
+  (sb-ext:gc :full full)
+  #+dotcl
+  (dotcl:gc))
 
 (defun excl:match-re (pattern string &key (return :string) case-fold)
   (multiple-value-bind (start end regs-starts regs-ends)
@@ -159,11 +161,11 @@ as on Allegro CL."
 ;; has no atomic list push or pop, so the lock behind
 ;; mp:without-scheduling (package-mp.lisp) stands in.
 (defmacro excl:pop-atomic (place)
-  #+(or ccl egcl) `(mp:without-scheduling (pop ,place))
+  #+(or ccl egcl dotcl) `(mp:without-scheduling (pop ,place))
   #+sbcl `(sb-ext:atomic-pop ,place))
 
 (defmacro excl:push-atomic (value place)
-  #+(or ccl egcl) `(mp:without-scheduling (push ,value ,place))
+  #+(or ccl egcl dotcl) `(mp:without-scheduling (push ,value ,place))
   #+sbcl `(sb-ext:atomic-push ,value ,place))
 
 ;;; Misc
@@ -547,7 +549,7 @@ START, no further than END.  The index just past what was copied."
   (excl:device-write stream sequence start end nil)
   sequence)
 
-#+(or sbcl egcl)
+#+(or sbcl egcl dotcl)
 (defmethod stream-write-sequence ((stream zacl-simple-stream) sequence start end &key)
   (let ((buffer (zacl-simple-stream-output-buffer stream)))
     ;; no space in buffer?

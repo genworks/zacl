@@ -31,6 +31,8 @@
                (:file "sbcl-specific")
                #+egcl
                (:file "egcl-specific")
+               #+dotcl
+               (:file "dotcl-specific")
                #-clozure
                (:file "portable-process")
                #+clozure

@@ -355,13 +355,15 @@ takes both families."
                  (if (typep ipaddr 'string)
                      (sb-bsd-sockets:make-inet-address ipaddr)
                      ipaddr)))
+        #+dotcl (dotcl-bsd-sockets:host-ent-name
+                 (dotcl-bsd-sockets:get-host-by-address ipaddr))
         #+ccl (ipaddr-to-hostname ipaddr)
         ;; no reverse lookup on EGCL either: the address itself
         #+egcl (if (stringp ipaddr) ipaddr (socket:ipaddr-to-dotted ipaddr)))))
 
 (defun socket:lookup-hostname (name)
   #+ccl (lookup-hostname name)
-  #+(or sbcl egcl) (let ((address (get-host-by-name name)))
+  #+(or sbcl egcl dotcl) (let ((address (get-host-by-name name)))
            (if (= (length address) 16)
                (usocket:vector-to-ipv6-host address)
                (format nil "~{~a~^.~}" (coerce address 'list)))))
