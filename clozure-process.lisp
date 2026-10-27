@@ -48,6 +48,10 @@
 
 (defun kill (process)
   (when (string-equal (ccl:process-whostate process) "Reset")
+    ;; A process made but never preset cannot be enabled or killed
+    ;; ("has not been preset"); a reset one is not going to run its
+    ;; function anyway, so give it nothing to do, then let it go.
+    (ccl:process-preset process (lambda () nil))
     (ccl:process-enable process))
   (ccl:process-kill process))
 

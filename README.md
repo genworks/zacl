@@ -58,10 +58,18 @@ you can load that with
 
 ## Limitations
 
-**Only works on Clozure CL and SBCL**. Support for other
-implementations may be added if there is sufficient
-demand. Contributions of ports to other implementations are of course
-welcome
+**Runs on Clozure CL, SBCL, ECL, Evergreen Common Lisp (EGCL) and
+dotcl**. Clozure CL and SBCL are the platforms AllegroServe serves
+Gendl on in production; the ECL, EGCL and dotcl ports pass the same
+`zacl-tests` suite and serve pages, and are younger. EGCL needs a
+dynamically linked build of the runtime (the glibc `c-ffi` build)
+for cl+ssl's foreign library; dotcl takes its patched CFFI and
+friends from the dotcl Quicklisp dist. Support for other
+implementations may be added if there is sufficient demand; the
+implementation-specific surface is one small file per platform
+(`sbcl-specific.lisp`, `ecl-specific.lisp`, ...) plus a few
+reader conditionals. Contributions of ports to other implementations
+are of course welcome
 
 **Does not support CGI**. A victim of time constraints. The author and
 maintainers do not currently need CGI. CGI functionality requires

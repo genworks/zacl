@@ -33,6 +33,8 @@
                (:file "egcl-specific")
                #+dotcl
                (:file "dotcl-specific")
+               #+ecl
+               (:file "ecl-specific")
                #-clozure
                (:file "portable-process")
                #+clozure

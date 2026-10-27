@@ -11,7 +11,7 @@
                 ;; XXX Private package
                 #:without-interrupts
                 #:fd-stream-fd)
-  #+(or sbcl egcl dotcl)
+  #+(or sbcl egcl dotcl ecl)
   (:import-from #:usocket
 		#:get-host-by-name)
 
@@ -319,7 +319,7 @@
   (:shadow #:defpackage)
   (:export #:defpackage))
 
-(defpackage #:sys
+(defpackage #-ecl #:sys #+ecl #:zacl.sys
   (:use)
   (:export #:reap-os-subprocess
            #:with-timeout
@@ -388,9 +388,9 @@ package name.
 (defpackage #:net.html.generator
   (:use))
 
-(defpackage #:mp
+(defpackage #-ecl #:mp #+ecl #:zacl.mp
   (:use)
-  (:import-from #:sys
+  (:import-from #-ecl #:sys #+ecl #:zacl.sys
                 #:*current-process*
                 #:with-timeout)
   (:export #:with-timeout
@@ -423,7 +423,7 @@ package name.
            #:process-thread
            #:*current-process*))
 
-(defpackage #:si
+(defpackage #-ecl #:si #+ecl #:zacl.si
   (:use)
   (:export #:without-scheduling
            #:global-symbol-value))
@@ -442,3 +442,15 @@ package name.
   (:export #:string+))
 
 (defpackage #:acl-socket (:use))
+
+;;; ECL's own MP, SI and SYS packages are the names Allegro code uses,
+;;; so on ECL zacl's are ZACL.MP, ZACL.SI and ZACL.SYS (above), and the
+;;; packages that read Allegro code see them under the Allegro names as
+;;; package-local nicknames: zacl itself here, and every package
+;;; AllegroServe defines through user:defpackage (defpackage-hack.lisp).
+;;; Added after the packages exist, which ECL's defpackage insists on.
+#+ecl
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (ext:add-package-local-nickname "MP" "ZACL.MP" "ZACL")
+  (ext:add-package-local-nickname "SI" "ZACL.SI" "ZACL")
+  (ext:add-package-local-nickname "SYS" "ZACL.SYS" "ZACL"))

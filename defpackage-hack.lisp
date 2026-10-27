@@ -5,6 +5,10 @@
 (defmacro user:defpackage (name &rest clauses)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (defpackage ,name
+       ;; ECL: Allegro's MP, SI and SYS are ECL's own packages; see
+       ;; package.lisp for the ZACL.* packages these nicknames name.
+       #+ecl
+       (:local-nicknames (#:mp #:zacl.mp) (#:si #:zacl.si) (#:sys #:zacl.sys))
        (:shadowing-import-from #:zacl-cl
                                #:macroexpand
                                #:read-sequence

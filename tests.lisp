@@ -2,6 +2,9 @@
 
 (defpackage #:zacl-tests
   (:use #:cl #:fiveam)
+  ;; ECL: Allegro's MP is ECL's own package; zacl's is ZACL.MP there
+  #+ecl
+  (:local-nicknames (#:mp #:zacl.mp))
   (:import-from #:usocket
                 #:socket-listen
                 #:get-local-port
@@ -130,7 +133,9 @@
     (setf (net.uri:uri-query uri) query)
     (setf (net.uri:uri-host uri) host)
     (setf (net.uri:uri-fragment uri) fragment)
-    (setf (net.uri:uri-scheme uri) scheme)
+    ;; quri keeps the scheme read-only; Allegro's copy-uri takes the
+    ;; new value as a keyword too
+    (setf uri (net.uri:copy-uri uri :scheme scheme))
     (is (equalp (net.uri:uri-query uri) query))
     (is (equalp (net.uri:uri-host uri) host))
     (is (equalp (net.uri:uri-fragment uri) fragment))
@@ -193,6 +198,11 @@
 (defmethod zacl-cl:stream-external-format ((stream babel-streams::vector-stream))
   nil)
 
+;; The chunking stream's output handle in call-with-chunking-stream is a
+;; flexi-stream; it carries its own external format.
+(defmethod zacl-cl:stream-external-format ((stream flexi-streams:flexi-stream))
+  nil)
+
 (test unchunking-stream
   (let* ((string "foo bar baz")
          (decoded-length (length string))
@@ -232,7 +242,10 @@
                     (let ((s (make-instance 'net.aserve::prepend-stream
                                             :content prefix
                                             :output-handle stream)))
-                      (write-string text s)))))
+                      ;; a buffered stream: what it holds reaches the
+                      ;; buffer at finish-output
+                      (write-string text s)
+                      (finish-output s)))))
       (is (equalp buffer expected)))))
 
 (test implementation-specific

@@ -48,7 +48,9 @@ longer anonymous, but has a meaningful name name."
   #+sbcl
   (sb-ext:gc :full full)
   #+dotcl
-  (dotcl:gc))
+  (dotcl:gc)
+  #+ecl
+  (ext:gc t))
 
 (defun excl:match-re (pattern string &key (return :string) case-fold)
   (multiple-value-bind (start end regs-starts regs-ends)
@@ -73,8 +75,11 @@ longer anonymous, but has a meaningful name name."
   (create-scanner pattern))
 
 
+;; An octet buffer, said so: babel-streams' default element type is
+;; :DEFAULT, which SBCL 2.6 refuses to upgrade (zacl-tests buffer-output
+;; and prepend-stream).
 (defmacro excl:with-output-to-buffer ((stream) &body body)
-  `(with-output-to-sequence (,stream)
+  `(with-output-to-sequence (,stream :element-type '(unsigned-byte 8))
      ,@body))
 
 (defun excl:get-output-stream-buffer (stream)
@@ -161,11 +166,11 @@ as on Allegro CL."
 ;; has no atomic list push or pop, so the lock behind
 ;; mp:without-scheduling (package-mp.lisp) stands in.
 (defmacro excl:pop-atomic (place)
-  #+(or ccl egcl dotcl) `(mp:without-scheduling (pop ,place))
+  #+(or ccl egcl dotcl ecl) `(mp:without-scheduling (pop ,place))
   #+sbcl `(sb-ext:atomic-pop ,place))
 
 (defmacro excl:push-atomic (value place)
-  #+(or ccl egcl dotcl) `(mp:without-scheduling (push ,value ,place))
+  #+(or ccl egcl dotcl ecl) `(mp:without-scheduling (push ,value ,place))
   #+sbcl `(sb-ext:atomic-push ,value ,place))
 
 ;;; Misc
@@ -306,7 +311,10 @@ values otherwise."
 (defmacro excl:without-interrupts (&body body)
   #+(or ccl sbcl)
   `(without-interrupts ,@body)
-  #-(or ccl sbcl)
+  ;; ECL's MP package, by its other name: MP is zacl's here.
+  #+ecl
+  `(multiprocessing:without-interrupts ,@body)
+  #-(or ccl sbcl ecl)
   `(progn ,@body))
 
 (defmacro excl:defvar-nonbindable (name value &optional doc)
@@ -544,13 +552,11 @@ START, no further than END.  The index just past what was copied."
 (defmethod stream-write-sequence ((stream zacl-simple-stream) (sequence string) start end &key)
   (stream-write-string stream sequence start end))
 
-#+ccl
-(defmethod stream-write-sequence ((stream zacl-simple-stream) sequence start end &key)
-  (excl:device-write stream sequence start end nil)
-  sequence)
-
-#+(or sbcl egcl dotcl)
-(defmethod stream-write-sequence ((stream zacl-simple-stream) sequence start end &key)
+;; Every octet goes through the one output buffer, in order.  Clozure CL
+;; used to hand a vector straight to device-write while write-byte and
+;; write-string went through the buffer, so a body that mixed the two came
+;; out reordered (zacl-tests chunking-round-trip: "Hello, dworl").
+(defun write-octets-buffered (stream sequence start end)
   (let ((buffer (zacl-simple-stream-output-buffer stream)))
     ;; no space in buffer?
     (when (> (+ (- end start) (zacl-simple-stream-output-pointer stream))
@@ -561,7 +567,7 @@ START, no further than END.  The index just past what was copied."
       ;; let's write it directly to the output
       (when (>= (- end start) (length buffer))
 	(excl:device-write stream sequence start end nil)
-	(return-from stream-write-sequence sequence)))
+	(return-from write-octets-buffered sequence)))
     ;; buffer it
     (replace buffer sequence
 	     :start1 (zacl-simple-stream-output-pointer stream)
@@ -569,6 +575,9 @@ START, no further than END.  The index just past what was copied."
 	     :end2 end)
     (incf (zacl-simple-stream-output-pointer stream) (- end start)))
   sequence)
+
+(defmethod stream-write-sequence ((stream zacl-simple-stream) sequence start end &key)
+  (write-octets-buffered stream sequence start end))
 
 (defmethod stream-force-output ((stream zacl-simple-stream))
   (let ((buffer (zacl-simple-stream-output-buffer stream)))
@@ -580,6 +589,31 @@ START, no further than END.  The index just past what was copied."
   ;; are in the a new line or not
   (trivial-gray-streams:stream-terpri stream)
   t)
+
+;; The pretty printer asks an output stream for its column (SBCL does
+;; even for ~a of a list), and the implementation's default methods cover
+;; only FUNDAMENTAL-CHARACTER-OUTPUT-STREAM, which this class is not: on
+;; SBCL a handler that formatted a list to *html-stream* died with 'no
+;; applicable method for SB-GRAY:STREAM-LINE-COLUMN' and the reply was
+;; never sent (2026-10-06).  No column is known here.
+(defmethod trivial-gray-streams:stream-line-column ((stream zacl-simple-stream))
+  nil)
+
+(defmethod trivial-gray-streams:stream-start-line-p ((stream zacl-simple-stream))
+  nil)
+
+;; ECL's printer asks the line length too (GRAY:STREAM-LINE-LENGTH), and
+;; the same request on ECL died the same way.
+#+ecl
+(defmethod gray:stream-line-length ((stream zacl-simple-stream))
+  nil)
+
+;; finish-output is force-output here: there is nothing further down to
+;; wait for, and the Gray default for FINISH-OUTPUT does nothing at all,
+;; which left a buffered prepend-stream's content unwritten.
+(defmethod trivial-gray-streams:stream-finish-output ((stream zacl-simple-stream))
+  (stream-force-output stream)
+  nil)
 
 (defgeneric underlying-output-stream (stream)
   (:method ((stream zacl-simple-stream))
@@ -606,7 +640,9 @@ START, no further than END.  The index just past what was copied."
 (defmethod ccl:stream-write-vector ((stream zacl-simple-stream) sequence start end)
   (unless start (setf start 0))
   (unless end (setf end (length sequence)))
-  (excl:device-write stream sequence start end nil))
+  (if (stringp sequence)
+      (stream-write-string stream sequence start end)
+      (write-octets-buffered stream sequence start end)))
 
 #+ccl
 (defmethod ccl:stream-read-vector ((stream zacl-simple-stream) sequence start end)

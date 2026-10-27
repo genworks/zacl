@@ -140,9 +140,14 @@
     ;; wrapper loop sees the :killed state; a process blocked in accept
     ;; ends when its caller closes the socket, as AllegroServe's SHUTDOWN
     ;; does right after killing the accept thread.
+    ;; A process that was never preset has a thread that has not run
+    ;; yet, and ECL refuses to interrupt an inactive one (its
+    ;; thread-alive-p says alive all the same): wake it as on EGCL.
     #-egcl
-    (interrupt-thread (thread process)
-                      (lambda () (throw 'killed nil)))
+    (when (thread-alive-p (thread process))
+      (handler-case (interrupt-thread (thread process)
+                                      (lambda () (throw 'killed nil)))
+        (error () (condition-notify (reasons-condition-variable process)))))
     #+egcl
     (condition-notify (reasons-condition-variable process)))
   (remove-from-all-processes process)

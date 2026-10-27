@@ -9,10 +9,13 @@
 ;;; dual-stack listening socket reports for a peer goes through the
 ;;; same functions; the text forms tell them apart.
 
-(defvar *ipv6?* t
+(defvar *ipv6?* #-dotcl t #+dotcl nil
   "Whether a passive socket asked for on no particular host listens on
 the IPv6 wildcard, which takes IPv4 connections too; a host without
-IPv6 falls back to IPv4.")
+IPv6 falls back to IPv4.  Off on dotcl, whose wildcard IPv6 listener
+takes no IPv4 connections (2026-10-27: 127.0.0.1 refused, ::1 and
+localhost served), so a server started with no :host would be
+unreachable over IPv4 there.")
 
 (defun ip-address-integer (ip-address)
   "An octet vector of 4 (IPv4) or 16 (IPv6) as one integer."
@@ -260,9 +263,12 @@ takes both families."
                  (if (equal host local-host)
                      (listen-on host)
                      ;; the IPv6 wildcard first; a host without IPv6
-                     ;; (a container, often) refuses it
+                     ;; (a container, often) refuses it, and so does a
+                     ;; usocket backend without INET6 (ECL's), whose
+                     ;; fallback must then be the IPv4 wildcard itself,
+                     ;; not the NIL it was asked for
                      (handler-case (listen-on host)
-                       (error () (listen-on local-host))))))))
+                       (error () (listen-on (or local-host usocket:*wildcard-host*)))))))))
        (make-instance 'zacl-socket
                       :socket socket)))
 
@@ -350,7 +356,8 @@ takes both families."
       ;; no reverse lookup for IPv6 here: the address itself
       (socket:ipaddr-to-dotted ipaddr)
       (progn
-        #+sbcl (sb-bsd-sockets:host-ent-name
+        ;; ECL's sockets contrib carries the SB-BSD-SOCKETS interface too.
+        #+(or sbcl ecl) (sb-bsd-sockets:host-ent-name
                 (sb-bsd-sockets:get-host-by-address
                  (if (typep ipaddr 'string)
                      (sb-bsd-sockets:make-inet-address ipaddr)
@@ -363,7 +370,7 @@ takes both families."
 
 (defun socket:lookup-hostname (name)
   #+ccl (lookup-hostname name)
-  #+(or sbcl egcl dotcl) (let ((address (get-host-by-name name)))
+  #+(or sbcl egcl dotcl ecl) (let ((address (get-host-by-name name)))
            (if (= (length address) 16)
                (usocket:vector-to-ipv6-host address)
                (format nil "~{~a~^.~}" (coerce address 'list)))))
