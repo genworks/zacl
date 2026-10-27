@@ -1,0 +1,113 @@
+cl-store on Evergreen Common Lisp (EGCL).  Sean Ross's cl-store (the
+serialization library zacl uses for AllegroServe's fasl-write and
+fasl-read), Quicklisp release 2023-02-14, refuses to load on a Lisp it
+does not know.  This adds EGCL to its list with :egcl as the backend
+directory name.  EGCL keeps its slot-introspection functions in CL-USER,
+as atgreen's closer-mop port does, so the package imports them from
+there; ensure-class, generic-function-name, compute-slots and the
+class-direct-* readers beyond class-direct-slots do not exist on EGCL
+yet and stay cl-store's own undefined symbols (reached only when storing
+class metaobjects themselves).  get-slot-details specializes on t, as on
+ECL and Clasp.  egcl/custom.lisp stores structures (specialized on
+structure-object, since EGCL does not expose structure-class as a class)
+and defines no special-float table, because EGCL signals on overflow and
+division by zero instead of producing infinities.
+
+The pipeline's deps job (.gitlab-ci.yml) applies this to the dist's
+cl-store with patch -p1 for the EGCL test job; the other Lisps are not
+affected by it.  Owed upstream (github.com/skypher/cl-store).
+
+diff -ruN a/cl-store.asd b/cl-store.asd
+--- a/cl-store.asd
++++ b/cl-store.asd
+@@ -9,7 +9,7 @@
+
+ (in-package #:cl-store.system)
+
+-#-(or lispworks mcl cmu clisp sbcl allegro ecl openmcl abcl clasp)
++#-(or lispworks mcl cmu clisp sbcl allegro ecl openmcl abcl clasp egcl)
+ (error "This is an unsupported lisp implementation.
+ Currently only MCL, OpenMCL, Lispworks, CMUCL, SBCL,
+ CLISP, ECL, AllegroCL and CLASP are supported.")
+@@ -20,7 +20,8 @@
+
+ (defun lisp-system-shortname ()
+   #+mcl :mcl #+lispworks :lispworks #+cmu :cmucl #+clisp :clisp #+sbcl :sbcl
+-  #+allegro :acl #+ecl :ecl #+openmcl :openmcl #+abcl :abcl #+clasp :clasp)
++  #+allegro :acl #+ecl :ecl #+openmcl :openmcl #+abcl :abcl #+clasp :clasp
++  #+egcl :egcl)
+
+ (defmethod component-pathname ((component non-required-file))
+   (let ((pathname (call-next-method))
+diff -ruN a/egcl/custom.lisp b/egcl/custom.lisp
+--- a/egcl/custom.lisp
++++ b/egcl/custom.lisp
+@@ -0,0 +1,29 @@
++;;; -*- Mode: LISP; Syntax: ANSI-Common-Lisp; Base: 10 -*-
++;; See the file LICENCE for licence information.
++(in-package :cl-store)
++
++;; Special floats: EGCL signals DIVISION-BY-ZERO and
++;; FLOATING-POINT-OVERFLOW instead of producing infinities and NaNs,
++;; so the default CREATE-FLOAT-VALUES in default-backend.lisp (an
++;; empty table) is the right one and nothing is defined here.
++
++;; Structures: EGCL's CLASS-OF answers a class for a structure
++;; instance and CLASS-SLOTS lists its slots, so structures store and
++;; restore the way they do on SBCL and Clozure CL.  The methods are
++;; specialized on STRUCTURE-OBJECT rather than on the STRUCTURE-CLASS
++;; metaclass, which EGCL does not expose as a class yet.
++
++(defmethod serializable-slots ((object structure-object))
++  (serializable-slots-using-class object (class-of object)))
++
++(defmethod serializable-slots-using-class ((object structure-object) class)
++  (class-slots class))
++
++(defstore-cl-store (obj structure-object stream)
++  (output-type-code +structure-object-code+ stream)
++  (store-type-object obj stream))
++
++(defrestore-cl-store (structure-object stream)
++  (restore-type-object stream))
++
++;; EOF
+diff -ruN a/package.lisp b/package.lisp
+--- a/package.lisp
++++ b/package.lisp
+@@ -50,6 +50,21 @@
+                        #:class-slots
+                        #:ensure-class)
+
++  ;; EGCL keeps its slot-introspection functions in CL-USER (as the
++  ;; closer-mop port does); it has no ENSURE-CLASS, GENERIC-FUNCTION-NAME,
++  ;; COMPUTE-SLOTS or CLASS-DIRECT-* beyond CLASS-DIRECT-SLOTS yet, so
++  ;; those stay cl-store's own (undefined) symbols here.
++  #+egcl (:import-from #:cl-user
++                       #:class-slots
++                       #:class-direct-slots
++                       #:slot-definition-name
++                       #:slot-definition-initargs
++                       #:slot-definition-initform
++                       #:slot-definition-allocation
++                       #:slot-definition-readers
++                       #:slot-definition-writers
++                       #:slot-definition-type)
++
+   #+ecl (:import-from #:clos
+                       #:generic-function-name
+                       #:compute-slots
+diff -ruN a/utils.lisp b/utils.lisp
+--- a/utils.lisp
++++ b/utils.lisp
+@@ -52,8 +52,8 @@
+   (:documentation 
+    "Return a list of slot details which can be used 
+     as an argument to ensure-class")
+-  (:method ((slot-definition #+(or ecl clasp abcl (and clisp (not mop))) t 
+-                             #-(or ecl clasp abcl (and clisp (not mop))) slot-definition))
++  (:method ((slot-definition #+(or ecl clasp abcl egcl (and clisp (not mop))) t 
++                             #-(or ecl clasp abcl egcl (and clisp (not mop))) slot-definition))
+    (list :name (slot-definition-name slot-definition)
+          :allocation (slot-definition-allocation slot-definition)
+          :initargs (slot-definition-initargs slot-definition)

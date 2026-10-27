@@ -56,6 +56,23 @@ you can load that with
     (ql:quickload :zacl)
 
 
+## Continuous integration
+
+Every push to gitlab.common-lisp.net runs `.gitlab-ci.yml`: zacl and
+zaserve are loaded, a page is published and fetched through
+AllegroServe's own client, and the `zacl-tests` suite is run, once on
+each of Clozure CL, SBCL, ECL and EGCL, in the Common Lisp
+Foundation's implementation images (`clfoundation/*` on Docker Hub).
+A single `deps` job fetches what the test jobs share (zaserve, the
+Quicklisp releases they depend on, and for EGCL the Evergreen library
+forks listed in `ci/egcl-forks.txt` plus the cl-store patch in
+`ci/cl-store-egcl.patch`); the test jobs then load everything with
+plain ASDF through `ci/run-tests.lisp`, which you can also run by hand
+in any of those images against a checkout that has a `deps/` tree.
+The EGCL job may fail without failing the pipeline while that port is
+young.  dotcl is not in the pipeline yet: its patched CFFI comes from
+the dotcl Quicklisp dist, which the ASDF-only layout does not fetch.
+
 ## Limitations
 
 **Runs on Clozure CL, SBCL, ECL, Evergreen Common Lisp (EGCL) and

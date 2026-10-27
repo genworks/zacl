@@ -3,3 +3,8 @@
 *.dx64fsl
 *.wx64fsl
 *.lx64fsl
+
+# The pipeline's dependency tree and Quicklisp's local-projects index
+# (.gitlab-ci.yml, ci/fetch-deps.lisp)
+deps/
+system-index.txt
