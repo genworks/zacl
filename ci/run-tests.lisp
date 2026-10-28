@@ -50,9 +50,10 @@
 ;; EGCL 0.0.10 loads asdf-flv (which fiveam depends on) with its
 ;; *FILE-LOCAL-VARIABLES* unbound, although the same DEFVAR with a NIL
 ;; initial value is bound when compiled and loaded on its own; a value
-;; given before the system loads is kept.  Reported upstream; until it is
-;; fixed, bind it here.  Two top-level forms: the second is read only
-;; once the first has made the package.
+;; given before the system loads is kept.  EGCL main after 0.0.10 loads
+;; it bound (checked on 68e77c4d, 2026-10-28), so this goes once the
+;; job's image carries a later release.  Two top-level forms: the second
+;; is read only once the first has made the package.
 #+egcl
 (defpackage #:net.didierverna.asdf-flv (:use #:cl))
 #+egcl

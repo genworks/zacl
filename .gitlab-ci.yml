@@ -55,7 +55,7 @@ test-sbcl:
 
 test-ccl:
   extends: .test
-  image: clfoundation/ccl:1.13.1-rc-trixie-slim
+  image: clfoundation/ccl:1.14-trixie-slim
   script:
     - ccl -n -b -l ci/run-tests.lisp
 
@@ -71,9 +71,15 @@ test-ecl:
 # The gnu-slim variant: a dynamically linked glibc EGCL with the C FFI,
 # which cl+ssl needs; the static musl executable of the other tags
 # cannot dlopen libcrypto.  The youngest port, so a failure here does
-# not fail the pipeline: as of 2026-10-27 it serves and passes 24 of
-# the 25 tests (chunking-round-trip writes octets into a character
-# stream there).
+# not fail the pipeline: as of 2026-10-28 it serves and passes 24 of
+# the 25 tests.  The one failure is the test harness's, not the
+# server's: EGCL 0.0.10 upgrades an (unsigned-byte 8) array to a
+# simple-vector of element type T, so the flexi-stream the
+# chunking-round-trip test wraps its buffer in takes the chunker's
+# CRLF octets for characters (flexi-streams tests the element type).
+# EGCL main stores those arrays packed since atgreen/evergreen#701
+# (2026-10-26, after the 0.0.10 release) and passes all 25 there; the
+# allowance goes when the image carries a later release.
 test-egcl:
   extends: .test
   image: clfoundation/egcl:0.0.10-trixie-gnu-slim
