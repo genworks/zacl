@@ -138,8 +138,9 @@
     ;; from INTERRUPT-THREAD).  Wake a process parked on its run-reasons
     ;; condition variable instead, so WAIT-UNTIL-RUNNABLE returns and the
     ;; wrapper loop sees the :killed state; a process blocked in accept
-    ;; ends when its caller closes the socket, as AllegroServe's SHUTDOWN
-    ;; does right after killing the accept thread.
+    ;; is woken by its caller closing the socket, as AllegroServe's
+    ;; SHUTDOWN does right after killing the accept thread, and
+    ;; SOCKET:ACCEPT-CONNECTION turns that error into the THROW.
     ;; A process that was never preset has a thread that has not run
     ;; yet, and ECL refuses to interrupt an inactive one (its
     ;; thread-alive-p says alive all the same): wake it as on EGCL.

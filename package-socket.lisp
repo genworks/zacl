@@ -281,8 +281,21 @@ takes both families."
                       :socket socket
                       :real-stream (socket-stream socket))))))
 
+;; A process that AllegroServe's SHUTDOWN has killed while it was blocked
+;; here is woken by the listener being closed under it, not interrupted,
+;; on a Lisp without thread interruption (EGCL; see KILL in
+;; portable-process.lisp).  The error that wakes it must not reach
+;; HTTP-ACCEPT-THREAD's handler, which logs every accept error and loops
+;; for ever by design -- it spun on the closed listener, logging, until
+;; the process exited.  Leave the way KILL does.
 (defun socket:accept-connection (socket)
-  (let ((incoming (socket-accept (socket socket))))
+  (let ((incoming (handler-bind ((error (lambda (condition)
+                                           (declare (ignore condition))
+                                           (let ((process *current-process*))
+                                             (when (and (typep process 'process)
+                                                        (killedp process))
+                                               (throw 'killed nil))))))
+                    (socket-accept (socket socket)))))
     (make-instance 'zacl-socket
                    :socket incoming
                    :real-stream (socket-stream incoming))))
