@@ -50,7 +50,11 @@ longer anonymous, but has a meaningful name name."
   #+dotcl
   (dotcl:gc)
   #+ecl
-  (ext:gc t))
+  (ext:gc t)
+  #+abcl
+  (ext:gc)
+  #+clasp
+  (gctools:garbage-collect))
 
 (defun excl:match-re (pattern string &key (return :string) case-fold)
   (multiple-value-bind (start end regs-starts regs-ends)
@@ -162,15 +166,15 @@ as on Allegro CL."
 
 ;; AllegroServe's fixed-size buffer pools (the header blocks among
 ;; them) are pushed and popped with these; a plain push or pop on
-;; Clozure CL let two request threads take the same block.  Clozure CL
-;; has no atomic list push or pop, so the lock behind
+;; Clozure CL let two request threads take the same block.  Only SBCL
+;; has an atomic list push and pop, so everywhere else the lock behind
 ;; mp:without-scheduling (package-mp.lisp) stands in.
 (defmacro excl:pop-atomic (place)
-  #+(or ccl egcl dotcl ecl) `(mp:without-scheduling (pop ,place))
+  #-sbcl `(mp:without-scheduling (pop ,place))
   #+sbcl `(sb-ext:atomic-pop ,place))
 
 (defmacro excl:push-atomic (value place)
-  #+(or ccl egcl dotcl ecl) `(mp:without-scheduling (push ,value ,place))
+  #-sbcl `(mp:without-scheduling (push ,value ,place))
   #+sbcl `(sb-ext:atomic-push ,value ,place))
 
 ;;; Misc
@@ -603,8 +607,8 @@ START, no further than END.  The index just past what was copied."
   nil)
 
 ;; ECL's printer asks the line length too (GRAY:STREAM-LINE-LENGTH), and
-;; the same request on ECL died the same way.
-#+ecl
+;; the same request on ECL died the same way; Clasp's printer is ECL's.
+#+(or ecl clasp)
 (defmethod gray:stream-line-length ((stream zacl-simple-stream))
   nil)
 

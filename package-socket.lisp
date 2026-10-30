@@ -378,12 +378,12 @@ takes both families."
         #+dotcl (dotcl-bsd-sockets:host-ent-name
                  (dotcl-bsd-sockets:get-host-by-address ipaddr))
         #+ccl (ipaddr-to-hostname ipaddr)
-        ;; no reverse lookup on EGCL either: the address itself
-        #+egcl (if (stringp ipaddr) ipaddr (socket:ipaddr-to-dotted ipaddr)))))
+        ;; no reverse lookup on EGCL, ABCL or Clasp either: the address itself
+        #+(or egcl abcl clasp) (if (stringp ipaddr) ipaddr (socket:ipaddr-to-dotted ipaddr)))))
 
 (defun socket:lookup-hostname (name)
   #+ccl (lookup-hostname name)
-  #+(or sbcl egcl dotcl ecl) (let ((address (get-host-by-name name)))
+  #+(or sbcl egcl dotcl ecl abcl clasp) (let ((address (get-host-by-name name)))
            (if (= (length address) 16)
                (usocket:vector-to-ipv6-host address)
                (format nil "~{~a~^.~}" (coerce address 'list)))))

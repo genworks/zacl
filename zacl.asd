@@ -35,6 +35,10 @@
                (:file "dotcl-specific")
                #+ecl
                (:file "ecl-specific")
+               #+abcl
+               (:file "abcl-specific")
+               #+clasp
+               (:file "clasp-specific")
                #-clozure
                (:file "portable-process")
                #+clozure

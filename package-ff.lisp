@@ -17,7 +17,11 @@
 
 (define-known-foreign-call "getpid" ()
   #+ccl
-  (ccl::getpid))
+  (ccl::getpid)
+  #+clasp
+  (core:getpid)
+  #+abcl
+  (ext:get-pid))
 
 (define-known-foreign-call "fork" ()
   (format t "; (fork) -- not implemented")

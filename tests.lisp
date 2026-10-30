@@ -2,8 +2,8 @@
 
 (defpackage #:zacl-tests
   (:use #:cl #:fiveam)
-  ;; ECL: Allegro's MP is ECL's own package; zacl's is ZACL.MP there
-  #+ecl
+  ;; ECL, Clasp and ABCL: zacl's MP is ZACL.MP there (package.lisp)
+  #+(or ecl abcl clasp)
   (:local-nicknames (#:mp #:zacl.mp))
   (:import-from #:usocket
                 #:socket-listen

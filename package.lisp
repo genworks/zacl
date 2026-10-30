@@ -11,7 +11,7 @@
                 ;; XXX Private package
                 #:without-interrupts
                 #:fd-stream-fd)
-  #+(or sbcl egcl dotcl ecl)
+  #+(or sbcl egcl dotcl ecl abcl clasp)
   (:import-from #:usocket
 		#:get-host-by-name)
 
@@ -319,7 +319,7 @@
   (:shadow #:defpackage)
   (:export #:defpackage))
 
-(defpackage #-ecl #:sys #+ecl #:zacl.sys
+(defpackage #-(or ecl abcl clasp) #:sys #+(or ecl abcl clasp) #:zacl.sys
   (:use)
   (:export #:reap-os-subprocess
            #:with-timeout
@@ -385,12 +385,16 @@ package name.
            #:uri-fragment
            #:uri))
 
+;; htmlgen.cl defines this package for itself.  ABCL's DEFPACKAGE does
+;; not add a new :USE or :EXPORT list to a package that already exists
+;; (SBCL, CCL and ECL do), so made here first it never used CL there.
+#-abcl
 (defpackage #:net.html.generator
   (:use))
 
-(defpackage #-ecl #:mp #+ecl #:zacl.mp
+(defpackage #-(or ecl abcl clasp) #:mp #+(or ecl abcl clasp) #:zacl.mp
   (:use)
-  (:import-from #-ecl #:sys #+ecl #:zacl.sys
+  (:import-from #-(or ecl abcl clasp) #:sys #+(or ecl abcl clasp) #:zacl.sys
                 #:*current-process*
                 #:with-timeout)
   (:export #:with-timeout
@@ -423,7 +427,7 @@ package name.
            #:process-thread
            #:*current-process*))
 
-(defpackage #-ecl #:si #+ecl #:zacl.si
+(defpackage #-(or ecl abcl clasp) #:si #+(or ecl abcl clasp) #:zacl.si
   (:use)
   (:export #:without-scheduling
            #:global-symbol-value))
@@ -444,12 +448,14 @@ package name.
 (defpackage #:acl-socket (:use))
 
 ;;; ECL's own MP, SI and SYS packages are the names Allegro code uses,
-;;; so on ECL zacl's are ZACL.MP, ZACL.SI and ZACL.SYS (above), and the
+;;; as are Clasp's, and ABCL's SYS (its SYSTEM) is another, so on ECL,
+;;; Clasp and ABCL zacl's are
+;;; ZACL.MP, ZACL.SI and ZACL.SYS (above), and the
 ;;; packages that read Allegro code see them under the Allegro names as
 ;;; package-local nicknames: zacl itself here, and every package
 ;;; AllegroServe defines through user:defpackage (defpackage-hack.lisp).
 ;;; Added after the packages exist, which ECL's defpackage insists on.
-#+ecl
+#+(or ecl abcl clasp)
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (ext:add-package-local-nickname "MP" "ZACL.MP" "ZACL")
   (ext:add-package-local-nickname "SI" "ZACL.SI" "ZACL")
