@@ -24,7 +24,7 @@ variables:
 
 deps:
   stage: deps
-  image: clfoundation/sbcl:2.6.9-trixie-slim
+  image: clfoundation/sbcl:2.6.10-trixie-slim
   script:
     - apt-get -qq update && apt-get -qq -y install --no-install-recommends git curl ca-certificates patch > /dev/null
     - mkdir -p deps
@@ -49,7 +49,7 @@ deps:
 
 test-sbcl:
   extends: .test
-  image: clfoundation/sbcl:2.6.9-trixie-slim
+  image: clfoundation/sbcl:2.6.10-trixie-slim
   script:
     - sbcl --noinform --non-interactive --load ci/run-tests.lisp
 
